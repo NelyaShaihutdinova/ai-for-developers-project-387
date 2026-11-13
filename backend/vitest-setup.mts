@@ -2,7 +2,6 @@ import { mkdirSync, existsSync, readFileSync, readdirSync, rmSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import Database from 'better-sqlite3'
-import { beforeEach } from 'vitest'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const dataDir = join(__dirname, 'data')
@@ -26,11 +25,3 @@ export async function setup() {
 }
 
 export async function teardown() {}
-
-// Clear bookings before every individual test to prevent cross-test pollution
-// (meeting types are preserved since they are often created in beforeAll)
-beforeEach(() => {
-  const sqlite = new Database(dbPath)
-  sqlite.exec('DELETE FROM bookings')
-  sqlite.close()
-})

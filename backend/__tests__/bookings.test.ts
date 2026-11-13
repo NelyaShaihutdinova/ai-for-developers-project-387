@@ -1,12 +1,15 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import request from 'supertest'
 import { serve } from '@hono/node-server'
 import type { Server } from 'node:http'
+import Database from 'better-sqlite3'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import app from '../src/index'
-import { db } from '../src/db'
-import { bookings, meetingTypes } from '../src/db/schema'
-import { sql } from 'drizzle-orm'
 import { getValidTestDate, makeStartAt } from './test-helpers'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const dbPath = join(__dirname, 'data', 'calendar.db')
 
 describe('Bookings', () => {
   let server: Server
@@ -16,20 +19,10 @@ describe('Bookings', () => {
   beforeAll(async () => {
     server = serve({ fetch: app.fetch, port: 3096 })
 
-    const bookingsBefore = db.select().from(bookings).all()
-    const mtBefore = db.select().from(meetingTypes).all()
-    console.log(
-      `[bookings beforeAll] Before cleanup: ${bookingsBefore.length} bookings, ${mtBefore.length} meeting_types`,
-    )
-
-    db.run(sql`DELETE FROM bookings`)
-    db.run(sql`DELETE FROM meeting_types`)
-
-    const bookingsAfter = db.select().from(bookings).all()
-    const mtAfter = db.select().from(meetingTypes).all()
-    console.log(
-      `[bookings beforeAll] After cleanup: ${bookingsAfter.length} bookings, ${mtAfter.length} meeting_types`,
-    )
+    const sqlite = new Database(dbPath)
+    sqlite.exec('DELETE FROM bookings')
+    sqlite.exec('DELETE FROM meeting_types')
+    sqlite.close()
 
     const res = await request('http://localhost:3096').post('/api/meeting-types').send({
       name: 'Тестовая встреча',
@@ -44,6 +37,12 @@ describe('Bookings', () => {
 
   afterAll(() => {
     server.close()
+  })
+
+  beforeEach(() => {
+    const sqlite = new Database(dbPath)
+    sqlite.exec('DELETE FROM bookings')
+    sqlite.close()
   })
 
   describe('POST /api/bookings', () => {
