@@ -5,6 +5,6 @@ export default defineConfig({
     environment: 'node',
     maxWorkers: 1,
     minWorkers: 1,
-    setupFiles: ['./vitest-setup.mts'],
+    globalSetup: ['./vitest-setup.mts'],
   },
 })
