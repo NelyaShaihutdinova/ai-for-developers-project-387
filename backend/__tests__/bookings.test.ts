@@ -212,18 +212,22 @@ describe('Bookings', () => {
   describe('GET /api/bookings', () => {
     it('returns future bookings sorted by startAt ASC', async () => {
       // Create two bookings for this test
-      await request('http://localhost:3096').post('/api/bookings').send({
-        meetingTypeId,
-        startAt: `${testDate}T06:00:00Z`,
-        guestName: 'First',
-        guestEmail: 'first@example.com',
-      })
-      await request('http://localhost:3096').post('/api/bookings').send({
-        meetingTypeId,
-        startAt: `${testDate}T07:00:00Z`,
-        guestName: 'Second',
-        guestEmail: 'second@example.com',
-      })
+      await request('http://localhost:3096')
+        .post('/api/bookings')
+        .send({
+          meetingTypeId,
+          startAt: `${testDate}T06:00:00Z`,
+          guestName: 'First',
+          guestEmail: 'first@example.com',
+        })
+      await request('http://localhost:3096')
+        .post('/api/bookings')
+        .send({
+          meetingTypeId,
+          startAt: `${testDate}T07:00:00Z`,
+          guestName: 'Second',
+          guestEmail: 'second@example.com',
+        })
 
       const res = await request('http://localhost:3096').get('/api/bookings')
       expect(res.status).toBe(200)
