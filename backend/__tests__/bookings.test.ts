@@ -9,7 +9,7 @@ import app from '../src/index'
 import { getValidTestDate, makeStartAt } from './test-helpers'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const dbPath = join(__dirname, 'data', 'calendar.db')
+const dbPath = join(__dirname, '..', 'data', 'calendar.db')
 
 describe('Bookings', () => {
   let server: Server
