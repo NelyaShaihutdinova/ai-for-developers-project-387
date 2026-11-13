@@ -18,14 +18,18 @@ describe('Bookings', () => {
 
     const bookingsBefore = db.select().from(bookings).all()
     const mtBefore = db.select().from(meetingTypes).all()
-    console.log(`[bookings beforeAll] Before cleanup: ${bookingsBefore.length} bookings, ${mtBefore.length} meeting_types`)
+    console.log(
+      `[bookings beforeAll] Before cleanup: ${bookingsBefore.length} bookings, ${mtBefore.length} meeting_types`,
+    )
 
     db.run(sql`DELETE FROM bookings`)
     db.run(sql`DELETE FROM meeting_types`)
 
     const bookingsAfter = db.select().from(bookings).all()
     const mtAfter = db.select().from(meetingTypes).all()
-    console.log(`[bookings beforeAll] After cleanup: ${bookingsAfter.length} bookings, ${mtAfter.length} meeting_types`)
+    console.log(
+      `[bookings beforeAll] After cleanup: ${bookingsAfter.length} bookings, ${mtAfter.length} meeting_types`,
+    )
 
     const res = await request('http://localhost:3096').post('/api/meeting-types').send({
       name: 'Тестовая встреча',
