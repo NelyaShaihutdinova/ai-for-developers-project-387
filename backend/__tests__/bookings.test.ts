@@ -211,23 +211,34 @@ describe('Bookings', () => {
 
   describe('GET /api/bookings', () => {
     it('returns future bookings sorted by startAt ASC', async () => {
+      // Create a fresh meeting type (previous one may have been deactivated)
+      const mtRes = await request('http://localhost:3096').post('/api/meeting-types').send({
+        name: 'GET Test Type',
+        description: 'For GET test',
+        durationMinutes: 30,
+      })
+      const localMtId = mtRes.body.id
+
       // Create two bookings for this test
-      await request('http://localhost:3096')
+      const res1 = await request('http://localhost:3096')
         .post('/api/bookings')
         .send({
-          meetingTypeId,
+          meetingTypeId: localMtId,
           startAt: `${testDate}T06:00:00Z`,
           guestName: 'First',
           guestEmail: 'first@example.com',
         })
-      await request('http://localhost:3096')
+      expect(res1.status).toBe(201)
+
+      const res2 = await request('http://localhost:3096')
         .post('/api/bookings')
         .send({
-          meetingTypeId,
+          meetingTypeId: localMtId,
           startAt: `${testDate}T07:00:00Z`,
           guestName: 'Second',
           guestEmail: 'second@example.com',
         })
+      expect(res2.status).toBe(201)
 
       const res = await request('http://localhost:3096').get('/api/bookings')
       expect(res.status).toBe(200)
