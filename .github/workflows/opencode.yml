@@ -62,7 +62,8 @@ jobs:
           echo "All required skills present."
 
       - name: Run OpenCode agent
-        uses: dceoy/opencode-action@v1
+        uses: dceoy/opencode-action@v0.8.2
         with:
           model: ${{ secrets.OPENCODE_MODEL }}
           mentions: "/opencode,/oc"
+          share: 'true'
