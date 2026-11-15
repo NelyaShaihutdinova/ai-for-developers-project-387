@@ -175,3 +175,35 @@ Backend: http://localhost:3000, Frontend: http://localhost:5173.
 | Paid ($7/мес+) | Persistent disk (`/app/backend/data`) | Данные сохраняются |
 
 На Free-плане все записи и типы встреч теряются при автоматическом засыпании Render (после 15 мин неактивности) или ручном перезапуске.
+
+## Агентский воркфлоу (OpenCode)
+
+Репозиторий настроен на вызов ИИ-агента из комментариев GitHub.
+
+### Как вызвать
+
+Оставьте комментарий в issue или PR с одной из команд:
+
+```
+/opencode опиши, что нужно сделать
+/oc создай спецификацию для этой задачи
+```
+
+### Настройки
+
+| Параметр | Значение |
+|---|---|
+| **События** | `issue_comment`, `pull_request_review_comment` (`created`) |
+| **Модель** | `opencode/qwen3.6-plus` (GitHub Secret `OPENCODE_MODEL`) |
+| **Авторизация** | GitHub App (id-token: write), без API-ключей |
+| **Mentions** | `/opencode`, `/oc` |
+| **Назначение** | Анализ issue/PR, генерация спецификаций, планирование задач, реализация кода |
+| **Доступ** | Только доверенные участники (OWNER, MEMBER, COLLABORATOR); боты и fork-PR исключены |
+| **Параллельность** | Один запуск на issue/PR (concurrency по номеру) |
+| **Таймаут** | 30 минут |
+| **Share** | Результаты публикуются в комментарий того же issue/PR |
+
+### Где смотреть результаты
+
+- **GitHub Actions**: вкладка [Actions → opencode](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/opencode.yml) — логи запуска
+- **Комментарий в issue/PR**: агент отвечает текстом с результатом работы
