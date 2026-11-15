@@ -4,10 +4,8 @@
 # Triggered by /opencode or /oc in issue/PR comments.                    #
 # Only trusted collaborators can invoke it. Forks do NOT get secrets.   #
 #                                                                        #
-# Required GitHub Secrets:                                               #
-#   OPENCODE_MODEL  — model identifier, e.g. anthropic/claude-opus-4-1  #
-#   OPENAI_API_KEY  — (if OpenAI models are used)                       #
-#   ANTHROPIC_API_KEY — (if Anthropic models are used)                  #
+# Authentication: GitHub App (id-token: write) — no API keys needed.    #
+# Model is set via secrets.OPENCODE_MODEL (e.g. opencode/qwen3.6-plus). #
 ##########################################################################
 
 name: opencode
@@ -38,7 +36,7 @@ jobs:
         contains(github.event.comment.body, '/oc')
       ) &&
       github.event.comment.author_association != 'NONE' &&
-      !contains(github.event.comment.user.login, '[bot]')
+      github.event.comment.user.type != 'Bot'
 
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -63,28 +61,8 @@ jobs:
           done
           echo "All required skills present."
 
-      - name: Extract command body
-        id: cmd
-        run: |
-          BODY="${{ github.event.comment.body }}"
-          # Extract text after /opencode or /oc
-          COMMAND=$(echo "$BODY" | sed -n 's|^.*/opencode\s*\(.*\)$|\1|p')
-          if [ -z "$COMMAND" ]; then
-            COMMAND=$(echo "$BODY" | sed -n 's|^.*/oc\s*\(.*\)$|\1|p')
-          fi
-          # If command is empty, use context from issue/PR
-          if [ -z "$COMMAND" ]; then
-            COMMAND="Read this issue/PR and suggest next steps."
-          fi
-          # Write to a temp file to avoid shell escaping
-          echo "$COMMAND" > /tmp/opencode-prompt.txt
-
       - name: Run OpenCode agent
-        uses: anomalyco/opencode-action@v1
+        uses: dceoy/opencode-action@v1
         with:
           model: ${{ secrets.OPENCODE_MODEL }}
           mentions: "/opencode,/oc"
-          prompt-file: /tmp/opencode-prompt.txt
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
