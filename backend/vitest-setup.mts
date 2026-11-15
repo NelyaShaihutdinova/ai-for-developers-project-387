@@ -1,10 +1,8 @@
 import { mkdirSync, existsSync, readFileSync, readdirSync, rmSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import { join } from 'path'
 import Database from 'better-sqlite3'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const dataDir = join(__dirname, 'data')
+const dataDir = join(process.cwd(), 'data')
 const dbPath = join(dataDir, 'calendar.db')
 
 export async function setup() {
@@ -15,7 +13,7 @@ export async function setup() {
   }
 
   const sqlite = new Database(dbPath)
-  const migrationsDir = join(__dirname, 'migrations')
+  const migrationsDir = join(process.cwd(), 'migrations')
   const files = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
   for (const file of files) {
     const sql = readFileSync(join(migrationsDir, file), 'utf-8')

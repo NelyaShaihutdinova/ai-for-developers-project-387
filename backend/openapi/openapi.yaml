@@ -174,6 +174,7 @@ components:
         - endAt
         - guestName
         - guestEmail
+        - topic
         - createdAt
       properties:
         id:
@@ -189,6 +190,8 @@ components:
         guestName:
           type: string
         guestEmail:
+          type: string
+        topic:
           type: string
         createdAt:
           type: string
@@ -209,6 +212,8 @@ components:
           type: string
         guestEmail:
           type: string
+        topic:
+          type: string
     BookingWithTypeName:
       type: object
       required:
@@ -219,6 +224,7 @@ components:
         - endAt
         - guestName
         - guestEmail
+        - topic
         - createdAt
       properties:
         id:
@@ -236,6 +242,8 @@ components:
         guestName:
           type: string
         guestEmail:
+          type: string
+        topic:
           type: string
         createdAt:
           type: string

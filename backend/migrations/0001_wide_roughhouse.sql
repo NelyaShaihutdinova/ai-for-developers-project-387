@@ -5,6 +5,7 @@ CREATE TABLE `bookings` (
 	`end_at` text NOT NULL,
 	`guest_name` text NOT NULL,
 	`guest_email` text NOT NULL,
+	`topic` text DEFAULT '' NOT NULL,
 	`created_at` text DEFAULT '(datetime(''now''))' NOT NULL,
 	FOREIGN KEY (`meeting_type_id`) REFERENCES `meeting_types`(`id`) ON UPDATE no action ON DELETE restrict
 );
