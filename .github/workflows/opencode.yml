@@ -1,0 +1,90 @@
+##########################################################################
+#                    OpenCode Agent Workflow                             #
+#                                                                        #
+# Triggered by /opencode or /oc in issue/PR comments.                    #
+# Only trusted collaborators can invoke it. Forks do NOT get secrets.   #
+#                                                                        #
+# Required GitHub Secrets:                                               #
+#   OPENCODE_MODEL  — model identifier, e.g. anthropic/claude-opus-4-1  #
+#   OPENAI_API_KEY  — (if OpenAI models are used)                       #
+#   ANTHROPIC_API_KEY — (if Anthropic models are used)                  #
+##########################################################################
+
+name: opencode
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+# Prevent concurrent agent runs on the same issue/PR
+concurrency:
+  group: opencode-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  agent:
+    # Only run when /opencode or /oc appears in the comment,
+    # author is a trusted collaborator (not NONE), and not a bot.
+    # Fork PRs have author_association=NONE, so they are excluded.
+    if: >-
+      (
+        contains(github.event.comment.body, '/opencode') ||
+        contains(github.event.comment.body, '/oc')
+      ) &&
+      github.event.comment.author_association != 'NONE' &&
+      !contains(github.event.comment.user.login, '[bot]')
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify required skills
+        run: |
+          # Skills from project-386 are already in .agents/skills/ via checkout.
+          # Verify key spec-driven development skills exist:
+          for skill in to-spec to-tickets implement-spec; do
+            if [ ! -d ".agents/skills/${skill}" ]; then
+              echo "ERROR: skill '${skill}' not found in .agents/skills/"
+              exit 1
+            fi
+            echo "✓ ${skill}"
+          done
+          echo "All required skills present."
+
+      - name: Extract command body
+        id: cmd
+        run: |
+          BODY="${{ github.event.comment.body }}"
+          # Extract text after /opencode or /oc
+          COMMAND=$(echo "$BODY" | sed -n 's|^.*/opencode\s*\(.*\)$|\1|p')
+          if [ -z "$COMMAND" ]; then
+            COMMAND=$(echo "$BODY" | sed -n 's|^.*/oc\s*\(.*\)$|\1|p')
+          fi
+          # If command is empty, use context from issue/PR
+          if [ -z "$COMMAND" ]; then
+            COMMAND="Read this issue/PR and suggest next steps."
+          fi
+          # Write to a temp file to avoid shell escaping
+          echo "$COMMAND" > /tmp/opencode-prompt.txt
+
+      - name: Run OpenCode agent
+        uses: anomalyco/opencode-action@v1
+        with:
+          model: ${{ secrets.OPENCODE_MODEL }}
+          mentions: "/opencode,/oc"
+          prompt-file: /tmp/opencode-prompt.txt
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
