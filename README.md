@@ -134,26 +134,38 @@ mise run hooks:install
 
 ### Публичная ссылка
 
-Сервис работает на Render:
+Сервис был развёрнут на Render, но Free-план приостановлен:
 
 **https://ai-for-developers-project-387-vzkq.onrender.com**
 
-### MCP-сервер Render
+На Free-плане Render засыпает через 15 минут неактивности и данные сбрасываются.
 
-Проект подключён к MCP-серверу Render для управления деплоем из IDE. Секреты не хранятся в репозитории:
+### Запуск локально
 
-1. Скопируйте `.env.example` в `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Получите API-ключ в [Render Dashboard → API Keys](https://dashboard.render.com/u/settings#api-keys).
-3. Вставьте его в `.env`:
-   ```
-   RENDER_API_KEY=rnd_your_key_here
-   ```
-4. Файл `.env` уже в `.gitignore` и не попадёт в Git.
+#### Через Docker (рекомендуется)
 
-MCP-сервер берёт токен из переменной `RENDER_API_KEY` через `{env:RENDER_API_KEY}` в `opencode.jsonc`.
+```bash
+# Собрать образ
+docker build -t calendar-booking .
+
+# Запустить (порт 3000)
+docker run --rm -p 3000:3000 -e PORT=3000 calendar-booking
+```
+
+Откройте http://localhost:3000.
+
+#### Без Docker
+
+```bash
+# Установка зависимостей
+mise install
+mise run install
+
+# Запуск dev-серверов (backend + frontend)
+mise run dev
+```
+
+Backend: http://localhost:3000, Frontend: http://localhost:5173.
 
 ### Хранение данных
 
