@@ -3,9 +3,6 @@
 #                                                                        #
 # Triggered by /opencode or /oc in issue/PR comments.                    #
 # Only trusted collaborators can invoke it. Forks do NOT get secrets.   #
-#                                                                        #
-# Authentication: GitHub App (id-token: write) — no API keys needed.    #
-# Model is set via secrets.OPENCODE_MODEL (e.g. opencode/qwen3.6-plus). #
 ##########################################################################
 
 name: opencode
@@ -16,30 +13,32 @@ on:
   pull_request_review_comment:
     types: [created]
 
-# Prevent concurrent agent runs on the same issue/PR
+permissions: {}
+
 concurrency:
   group: opencode-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   agent:
-    # Only run when /opencode or /oc appears in the comment,
-    # author is a trusted collaborator (not NONE), and not a bot.
-    # Fork PRs have author_association=NONE, so they are excluded.
     if: >-
       (
         contains(github.event.comment.body, '/opencode') ||
-        contains(github.event.comment.body, '/oc')
+        contains(github.event.comment.body, '/oc') ||
+        startsWith(github.event.comment.body, '/opencode') ||
+        startsWith(github.event.comment.body, '/oc')
       ) &&
       github.event.comment.author_association != 'NONE' &&
       github.event.comment.user.type != 'Bot'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+      issues: read
 
     steps:
       - name: Checkout repository
@@ -48,22 +47,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Verify required skills
-        run: |
-          # Skills from project-386 are already in .agents/skills/ via checkout.
-          # Verify key spec-driven development skills exist:
-          for skill in to-spec to-tickets implement-spec; do
-            if [ ! -d ".agents/skills/${skill}" ]; then
-              echo "ERROR: skill '${skill}' not found in .agents/skills/"
-              exit 1
-            fi
-            echo "✓ ${skill}"
-          done
-          echo "All required skills present."
-
       - name: Run OpenCode agent
-        uses: dceoy/opencode-action@v0.8.2
+        uses: anomalyco/opencode/github@145e1891b1bda0d9574689c61c4708136c0e729e
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
-          model: ${{ secrets.OPENCODE_MODEL }}
-          mentions: "/opencode,/oc"
+          model: opencode/qwen3.6-plus
+          mentions: /opencode,/oc
           share: 'true'
