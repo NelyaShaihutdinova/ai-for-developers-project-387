@@ -48,7 +48,7 @@ jobs:
           fetch-depth: 0
 
       - name: Run OpenCode agent
-        uses: anomalyco/opencode/github@145e1891b1bda0d9574689c61c4708136c0e729e
+        uses: anomalyco/opencode/.github/actions/github@v1
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         with:
