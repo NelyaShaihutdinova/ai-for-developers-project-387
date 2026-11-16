@@ -190,6 +190,8 @@ components:
           type: string
         guestEmail:
           type: string
+        topic:
+          type: string
         createdAt:
           type: string
     BookingCreate:
@@ -208,6 +210,8 @@ components:
         guestName:
           type: string
         guestEmail:
+          type: string
+        topic:
           type: string
     BookingWithTypeName:
       type: object
@@ -236,6 +240,8 @@ components:
         guestName:
           type: string
         guestEmail:
+          type: string
+        topic:
           type: string
         createdAt:
           type: string
