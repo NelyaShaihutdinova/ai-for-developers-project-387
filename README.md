@@ -272,3 +272,27 @@ Issue, созданные через `to-tickets`, уже имеют метку 
 ### Шаблон PR
 
 `.github/pull_request_template.md` содержит разделы: проверки (команды, ссылки, SHA), оценка риска, способ отката.
+
+## Лимит запусков агента
+
+Для предотвращения бесконечных вызовов агента установлен лимит **3 запуска** на один PR/issue.
+
+### Как работает
+
+1. Счётчик хранится в **GitHub Actions API** (история workflow runs) — токен агента не может его переписать
+2. Перед вызовом модели шаг `Check run limit` подсчитывает completed runs для данного PR/issue
+3. При `completed_runs >= MAX_RUNS` модель **не вызывается**, публикуется комментарий с reason
+
+### Reason коды
+
+| Код | Описание |
+|---|---|
+| `timeout` | Предыдущий run отменён по таймауту |
+| `infra` | Сбой инфраструктуры (OIDC, API-ключ, секреты) |
+| `agent_failed` | Агент завершился с ошибкой (не infra) |
+| `limit_exhausted` | Лимит превышен, но нет данных о последнем run |
+
+### Где смотреть
+
+- Комментарий в PR/issue: `⛔ Agent run limit exhausted (N/3)` с reason, SHA и ссылкой на логи
+- GitHub Actions: вкладка [Actions](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions) — история запусков
