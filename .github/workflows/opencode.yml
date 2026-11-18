@@ -94,6 +94,8 @@ jobs:
                 else
                   REASON="agent_failed"
                 fi
+              elif [ "$CONCLUSION" = "success" ]; then
+                REASON="limit_exhausted"
               else
                 REASON="agent_failed"
               fi
