@@ -207,3 +207,30 @@ Backend: http://localhost:3000, Frontend: http://localhost:5173.
 
 - **GitHub Actions**: вкладка [Actions → opencode](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/opencode.yml) — логи запуска
 - **Комментарий в issue/PR**: агент отвечает текстом с результатом работы
+
+## Автотриаж (Auto-Triage)
+
+Репозиторий автоматически разбирает новые issue при их создании.
+
+### Как работает
+
+1. При создании issue запускается workflow `auto-triage.yml`
+2. Агент `/triage` читает описание, анализирует код и задаёт уточняющие вопросы
+3. Применяет метку триажа из `docs/agents/triage-labels.md`:
+
+| Метка | Значение |
+|---|---|
+| `needs-triage` | Новый issue, ожидает разбора |
+| `needs-info` | Нужны уточнения от автора |
+| `ready-for-agent` | Полностью описан, готов к реализации агентом |
+| `ready-for-human` | Требует реализации человеком |
+| `wontfix` | Не будет реализован |
+
+### Пропуск готовых тикетов
+
+Issue, созданные через `to-tickets`, уже имеют метку `ready-for-agent` и **не проходят** повторный триаж. Автотриаж срабатывает только на входящие обращения без меток.
+
+### Где смотреть результаты
+
+- **GitHub Actions**: вкладка [Actions → auto-triage](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/auto-triage.yml)
+- **Комментарий в issue**: агент публикует разбор с вопросами и рекомендациями
