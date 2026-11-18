@@ -12,5 +12,10 @@
         "disabled": false
       }
     }
+  },
+  "permission": {
+    "external_directory": {
+      "*-wt-*": "allow"
+    }
   }
 }
