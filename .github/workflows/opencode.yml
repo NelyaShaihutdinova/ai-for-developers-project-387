@@ -61,8 +61,12 @@ jobs:
       - name: Check run limit
         id: limit
         run: |
+          # Get current run ID to exclude it from the count
+          CURRENT_RUN_ID=${{ github.run_id }}
+
+          # Count completed runs for this PR/issue (excluding current run)
           RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null) | .display_title" \
+            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID) | .display_title" \
             | grep -c "#${TARGET_ID}" || true)
 
           echo "completed_runs=$RUNS" >> $GITHUB_OUTPUT
@@ -71,19 +75,18 @@ jobs:
           if [ "$RUNS" -ge "$MAX_RUNS" ]; then
             echo "limit_exceeded=true" >> $GITHUB_OUTPUT
 
-            # Determine reason from last run
-            LAST_RUN=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-              --jq ".workflow_runs[0]" \
-              | jq -r 'select(.display_title | contains("#${TARGET_ID}"))')
+            # Get the last completed run for this PR (excluding current)
+            LAST_ID=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq "[.workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID and .display_title | contains(\"#${TARGET_ID}\"))] | last | .id")
 
-            if [ -n "$LAST_RUN" ]; then
-              CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
-              LAST_SHA=$(echo "$LAST_RUN" | jq -r '.head_sha')
-              RUN_ID=$(echo "$LAST_RUN" | jq -r '.id')
+            if [ -n "$LAST_ID" ] && [ "$LAST_ID" != "null" ]; then
+              CONCLUSION=$(gh api repos/${{ github.repository }}/actions/runs/$LAST_ID --jq '.conclusion')
+              LAST_SHA=$(gh api repos/${{ github.repository }}/actions/runs/$LAST_ID --jq '.head_sha')
+              RUN_ID=$LAST_ID
 
               if [ "$CONCLUSION" = "cancelled" ]; then
                 REASON="timeout"
-              elif echo "$CONCLUSION" | grep -qiE "failure"; then
+              elif [ "$CONCLUSION" = "failure" ]; then
                 # Check if it's infra error
                 LOGS=$(gh run view $RUN_ID --log-failed 2>/dev/null || true)
                 if echo "$LOGS" | grep -qiE "OIDC|ACTIONS_ID_TOKEN|OPENCODE_API_KEY|secret|key|infra"; then

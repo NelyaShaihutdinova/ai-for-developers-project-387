@@ -45,8 +45,12 @@ jobs:
       - name: Check run limit
         id: limit
         run: |
+          # Get current run ID to exclude it from the count
+          CURRENT_RUN_ID=${{ github.run_id }}
+
+          # Count completed runs for this PR (excluding current run)
           RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null) | .display_title" \
+            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID) | .display_title" \
             | grep -c "#${TARGET_ID}" || true)
 
           echo "completed_runs=$RUNS" >> $GITHUB_OUTPUT
@@ -55,31 +59,32 @@ jobs:
           if [ "$RUNS" -ge "$MAX_RUNS" ]; then
             echo "limit_exceeded=true" >> $GITHUB_OUTPUT
 
-            # Determine reason from last run
-            LAST_CONCLUSION=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .conclusion" \
-              | head -1)
+            # Get the last completed run for this PR (excluding current)
+            LAST_ID=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq "[.workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID and .display_title | contains(\"#${TARGET_ID}\"))] | last | .id")
 
-            LAST_SHA=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .head_sha" \
-              | head -1)
+            if [ -n "$LAST_ID" ] && [ "$LAST_ID" != "null" ]; then
+              CONCLUSION=$(gh api repos/${{ github.repository }}/actions/runs/$LAST_ID --jq '.conclusion')
+              LAST_SHA=$(gh api repos/${{ github.repository }}/actions/runs/$LAST_ID --jq '.head_sha')
+              RUN_ID=$LAST_ID
 
-            RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .id" \
-              | head -1)
-
-            if [ "$LAST_CONCLUSION" = "cancelled" ]; then
-              REASON="timeout"
-            elif [ "$LAST_CONCLUSION" = "failure" ]; then
-              # Check if it's infra error
-              LOGS=$(gh run view $RUN_ID --log-failed 2>/dev/null || true)
-              if echo "$LOGS" | grep -qiE "OIDC|ACTIONS_ID_TOKEN|OPENCODE_API_KEY|secret|key|infra"; then
-                REASON="infra"
+              if [ "$CONCLUSION" = "cancelled" ]; then
+                REASON="timeout"
+              elif [ "$CONCLUSION" = "failure" ]; then
+                # Check if it's infra error
+                LOGS=$(gh run view $RUN_ID --log-failed 2>/dev/null || true)
+                if echo "$LOGS" | grep -qiE "OIDC|ACTIONS_ID_TOKEN|OPENCODE_API_KEY|secret|key|infra"; then
+                  REASON="infra"
+                else
+                  REASON="agent_failed"
+                fi
               else
                 REASON="agent_failed"
               fi
             else
-              REASON="agent_failed"
+              REASON="limit_exhausted"
+              LAST_SHA=""
+              RUN_ID=""
             fi
 
             echo "reason=$REASON" >> $GITHUB_OUTPUT
