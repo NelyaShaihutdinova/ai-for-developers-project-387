@@ -15,6 +15,13 @@
       "when": 1794167711698,
       "tag": "0001_wide_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795015227387,
+      "tag": "0002_careful_bullseye",
+      "breakpoints": true
     }
   ]
 }

@@ -59,6 +59,9 @@ export const BookingCreateSchema = {
         },
         guestEmail: {
             type: 'string'
+        },
+        topic: {
+            type: 'string'
         }
     }
 } as const;
@@ -97,6 +100,9 @@ export const BookingWithTypeNameSchema = {
             type: 'string'
         },
         guestEmail: {
+            type: 'string'
+        },
+        topic: {
             type: 'string'
         },
         createdAt: {

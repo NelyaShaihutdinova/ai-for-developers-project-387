@@ -218,6 +218,7 @@ app.post('/api/bookings', async (c) => {
     startAt: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid ISO date' }),
     guestName: z.string().min(1).max(100),
     guestEmail: z.string().email().max(255),
+    topic: z.string().max(200).optional().default(''),
   })
 
   const validation = bookingSchema.safeParse(body)
@@ -230,7 +231,7 @@ app.post('/api/bookings', async (c) => {
     )
   }
 
-  const { meetingTypeId, startAt, guestName, guestEmail } = validation.data
+  const { meetingTypeId, startAt, guestName, guestEmail, topic } = validation.data
 
   // Get meeting type
   const mtResult = await db.select().from(meetingTypes).where(eq(meetingTypes.id, meetingTypeId))
@@ -323,8 +324,8 @@ app.post('/api/bookings', async (c) => {
 
       // Insert booking using raw SQL to avoid circular structure
       const insertResult = tx.run(
-        `INSERT INTO bookings (meeting_type_id, start_at, end_at, guest_name, guest_email)
-         VALUES (${meetingTypeId}, '${startStr}', '${endStr}', '${guestName}', '${guestEmail}')`,
+        `INSERT INTO bookings (meeting_type_id, start_at, end_at, guest_name, guest_email, topic)
+         VALUES (${meetingTypeId}, '${startStr}', '${endStr}', '${guestName}', '${guestEmail}', '${topic}')`,
       )
 
       const newId = insertResult.lastInsertRowid
@@ -361,6 +362,7 @@ app.get('/api/bookings', async (c) => {
       endAt: bookings.endAt,
       guestName: bookings.guestName,
       guestEmail: bookings.guestEmail,
+      topic: bookings.topic,
       createdAt: bookings.createdAt,
     })
     .from(bookings)

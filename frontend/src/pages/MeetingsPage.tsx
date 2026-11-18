@@ -72,13 +72,15 @@ function MeetingsPage() {
     endAt: string
     guestName: string
     guestEmail: string
+    topic?: string
   } | null>(null)
 
   const form = useForm({
-    initialValues: { guestName: '', guestEmail: '' },
+    initialValues: { guestName: '', guestEmail: '', topic: '' },
     validate: {
       guestName: (v) => (v.length > 0 ? null : 'Имя обязательно'),
       guestEmail: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : 'Неверный email'),
+      topic: (v) => (v.length <= 200 ? null : 'Максимум 200 символов'),
     },
   })
 
@@ -124,6 +126,7 @@ function MeetingsPage() {
           startAt: selectedSlot.startAt,
           guestName: values.guestName,
           guestEmail: values.guestEmail,
+          topic: values.topic,
         },
       })
 
@@ -152,12 +155,14 @@ function MeetingsPage() {
         endAt: string
         guestName: string
         guestEmail: string
+        topic?: string
       }
       setConfirmedBooking({
         startAt: data.startAt,
         endAt: data.endAt,
         guestName: data.guestName,
         guestEmail: data.guestEmail,
+        topic: data.topic,
       })
     } catch {
       setConflictError('Ошибка сети. Проверьте подключение и попробуйте ещё раз.')
@@ -195,7 +200,12 @@ function MeetingsPage() {
             <Text size="sm" mb="xs">
               Имя: {confirmedBooking.guestName}
             </Text>
-            <Text size="sm">Email: {confirmedBooking.guestEmail}</Text>
+            <Text size="sm" mb="xs">
+              Email: {confirmedBooking.guestEmail}
+            </Text>
+            {confirmedBooking.topic && (
+              <Text size="sm">Тема: {confirmedBooking.topic}</Text>
+            )}
           </Card>
           <Button onClick={resetToStart} size="lg" mt="md">
             Записаться ещё
@@ -343,8 +353,14 @@ function MeetingsPage() {
           <TextInput
             label="Email"
             placeholder="email@example.com"
-            mb="md"
+            mb="sm"
             {...form.getInputProps('guestEmail')}
+          />
+          <TextInput
+            label="Тема"
+            placeholder="Тема разговора (необязательно)"
+            mb="md"
+            {...form.getInputProps('topic')}
           />
           <Button type="submit" fullWidth size="lg" loading={booking}>
             Записаться
