@@ -14,9 +14,8 @@ concurrency:
 
 jobs:
   review:
-    # Только доверенные авторы, только свой репозиторий
+    # Only PRs from the same repo (not forks). Bots from same repo are allowed.
     if: >-
-      github.event.pull_request.author_association != 'NONE' &&
       github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
 
     runs-on: ubuntu-latest

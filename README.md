@@ -265,8 +265,7 @@ Issue, созданные через `to-tickets`, уже имеют метку 
 | **Критерии** | `REVIEW.md` — чек-лист календаря бронирований |
 | **Таймаут** | 10 минут |
 | **Параллельность** | Один запуск на PR (`cancel-in-progress: true`) |
-| **Фильтр авторов** | `author_association != 'NONE'` (исключает fork) |
-| **Фильтр веток** | `head.repo.full_name == base.repo.full_name` (только свой репо) |
+| **Фильтр веток** | `head.repo.full_name == base.repo.full_name` (только свой репо, боты разрешены) |
 | **Права** | `contents: read`, `pull-requests: write` |
 
 ### Шаблон PR
