@@ -47,10 +47,15 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Authenticate gh CLI
+        run: echo "${{ github.token }}" | gh auth login --with-token
+
       - name: Run OpenCode agent
         uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         with:
           model: opencode/qwen3.6-plus
           mentions: /opencode,/oc
