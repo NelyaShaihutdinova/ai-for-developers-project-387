@@ -3,9 +3,12 @@
 #                                                                        #
 # Triggered by /opencode or /oc in issue/PR comments.                    #
 # Only trusted collaborators can invoke it. Forks do NOT get secrets.   #
+# Max 3 agent runs per PR/issue (tracked via Actions API).              #
 ##########################################################################
 
 name: opencode
+
+run-name: "#${{ github.event.issue.number || github.event.pull_request.number }} - opencode"
 
 on:
   issue_comment:
@@ -40,6 +43,11 @@ jobs:
       pull-requests: write
       issues: write
 
+    env:
+      MAX_RUNS: 3
+      TARGET_ID: ${{ github.event.issue.number || github.event.pull_request.number }}
+      WORKFLOW_FILE: opencode.yml
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,7 +58,80 @@ jobs:
       - name: Authenticate gh CLI
         run: echo "${{ github.token }}" | gh auth login --with-token
 
+      - name: Check run limit
+        id: limit
+        run: |
+          RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null) | .display_title" \
+            | grep -c "#${TARGET_ID}" || true)
+
+          echo "completed_runs=$RUNS" >> $GITHUB_OUTPUT
+          echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
+
+          if [ "$RUNS" -ge "$MAX_RUNS" ]; then
+            echo "limit_exceeded=true" >> $GITHUB_OUTPUT
+
+            # Determine reason from last run
+            LAST_RUN=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq ".workflow_runs[0]" \
+              | jq -r 'select(.display_title | contains("#${TARGET_ID}"))')
+
+            if [ -n "$LAST_RUN" ]; then
+              CONCLUSION=$(echo "$LAST_RUN" | jq -r '.conclusion')
+              LAST_SHA=$(echo "$LAST_RUN" | jq -r '.head_sha')
+              RUN_ID=$(echo "$LAST_RUN" | jq -r '.id')
+
+              if [ "$CONCLUSION" = "cancelled" ]; then
+                REASON="timeout"
+              elif echo "$CONCLUSION" | grep -qiE "failure"; then
+                # Check if it's infra error
+                LOGS=$(gh run view $RUN_ID --log-failed 2>/dev/null || true)
+                if echo "$LOGS" | grep -qiE "OIDC|ACTIONS_ID_TOKEN|OPENCODE_API_KEY|secret|key|infra"; then
+                  REASON="infra"
+                else
+                  REASON="agent_failed"
+                fi
+              else
+                REASON="agent_failed"
+              fi
+            else
+              REASON="limit_exhausted"
+              LAST_SHA=""
+              RUN_ID=""
+            fi
+
+            echo "reason=$REASON" >> $GITHUB_OUTPUT
+            echo "last_sha=$LAST_SHA" >> $GITHUB_OUTPUT
+            echo "last_run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          else
+            echo "limit_exceeded=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish limit exhausted
+        if: steps.limit.outputs.limit_exceeded == 'true'
+        run: |
+          REASON="${{ steps.limit.outputs.reason }}"
+          LAST_SHA="${{ steps.limit.outputs.last_sha }}"
+          RUN_ID="${{ steps.limit.outputs.last_run_id }}"
+          PR_NUMBER="${{ env.TARGET_ID }}"
+          REPO="${{ github.repository }}"
+
+          MSG="⛔ **Agent run limit exhausted** (${{ steps.limit.outputs.completed_runs }}/${{ env.MAX_RUNS }})\n\n"
+          MSG+="**Reason**: \`$REASON\`\n"
+          MSG+="**Last SHA**: \`$LAST_SHA\`\n"
+          if [ -n "$RUN_ID" ]; then
+            MSG+="**Logs**: https://github.com/$REPO/actions/runs/$RUN_ID\n"
+          fi
+          MSG+="\nNo more model calls will be made for this PR/issue."
+
+          if [ -n "${{ github.event.issue.number }}" ]; then
+            gh issue comment $PR_NUMBER --body "$MSG"
+          else
+            gh pr comment $PR_NUMBER --body "$MSG"
+          fi
+
       - name: Run OpenCode agent
+        if: steps.limit.outputs.limit_exceeded != 'true'
         uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -60,4 +141,4 @@ jobs:
           model: opencode/qwen3.6-plus
           mentions: /opencode,/oc
           share: 'true'
-          use-github-token: 'true'
+          use_github_token: 'true'

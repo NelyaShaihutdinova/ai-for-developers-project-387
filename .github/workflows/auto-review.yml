@@ -1,5 +1,7 @@
 name: auto-review
 
+run-name: "#${{ github.event.pull_request.number }} - auto-review"
+
 on:
   pull_request:
     types: [opened, synchronize]
@@ -25,6 +27,11 @@ jobs:
       pull-requests: write
       id-token: write
 
+    env:
+      MAX_RUNS: 3
+      TARGET_ID: ${{ github.event.pull_request.number }}
+      WORKFLOW_FILE: auto-review.yml
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,7 +42,74 @@ jobs:
       - name: Authenticate gh CLI
         run: echo "${{ github.token }}" | gh auth login --with-token
 
+      - name: Check run limit
+        id: limit
+        run: |
+          RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+            --jq ".workflow_runs[] | select(.conclusion != \"\" and .conclusion != null) | .display_title" \
+            | grep -c "#${TARGET_ID}" || true)
+
+          echo "completed_runs=$RUNS" >> $GITHUB_OUTPUT
+          echo "max_runs=$MAX_RUNS" >> $GITHUB_OUTPUT
+
+          if [ "$RUNS" -ge "$MAX_RUNS" ]; then
+            echo "limit_exceeded=true" >> $GITHUB_OUTPUT
+
+            # Determine reason from last run
+            LAST_CONCLUSION=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .conclusion" \
+              | head -1)
+
+            LAST_SHA=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .head_sha" \
+              | head -1)
+
+            RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
+              --jq ".workflow_runs[] | select(.display_title | contains(\"#${TARGET_ID}\")) | .id" \
+              | head -1)
+
+            if [ "$LAST_CONCLUSION" = "cancelled" ]; then
+              REASON="timeout"
+            elif [ "$LAST_CONCLUSION" = "failure" ]; then
+              # Check if it's infra error
+              LOGS=$(gh run view $RUN_ID --log-failed 2>/dev/null || true)
+              if echo "$LOGS" | grep -qiE "OIDC|ACTIONS_ID_TOKEN|OPENCODE_API_KEY|secret|key|infra"; then
+                REASON="infra"
+              else
+                REASON="agent_failed"
+              fi
+            else
+              REASON="agent_failed"
+            fi
+
+            echo "reason=$REASON" >> $GITHUB_OUTPUT
+            echo "last_sha=$LAST_SHA" >> $GITHUB_OUTPUT
+            echo "last_run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          else
+            echo "limit_exceeded=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish limit exhausted
+        if: steps.limit.outputs.limit_exceeded == 'true'
+        run: |
+          REASON="${{ steps.limit.outputs.reason }}"
+          LAST_SHA="${{ steps.limit.outputs.last_sha }}"
+          RUN_ID="${{ steps.limit.outputs.last_run_id }}"
+          PR_NUMBER="${{ env.TARGET_ID }}"
+          REPO="${{ github.repository }}"
+
+          MSG="⛔ **Agent run limit exhausted** (${{ steps.limit.outputs.completed_runs }}/${{ env.MAX_RUNS }})\n\n"
+          MSG+="**Reason**: \`$REASON\`\n"
+          MSG+="**Last SHA**: \`$LAST_SHA\`\n"
+          if [ -n "$RUN_ID" ]; then
+            MSG+="**Logs**: https://github.com/$REPO/actions/runs/$RUN_ID\n"
+          fi
+          MSG+="\nNo more model calls will be made for this PR."
+
+          gh pr comment $PR_NUMBER --body "$MSG"
+
       - name: Run review agent
+        if: steps.limit.outputs.limit_exceeded != 'true'
         uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
