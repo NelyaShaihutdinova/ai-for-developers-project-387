@@ -261,7 +261,7 @@ Issue, созданные через `to-tickets`, уже имеют метку 
 
 | Параметр | Значение |
 |---|---|
-| **Событие** | `pull_request_target` (opened, synchronize) — безопасно: читает только base branch |
+| **Событие** | `pull_request` (opened, synchronize) |
 | **Критерии** | `REVIEW.md` — чек-лист календаря бронирований |
 | **Таймаут** | 10 минут |
 | **Параллельность** | Один запуск на PR (`cancel-in-progress: true`) |

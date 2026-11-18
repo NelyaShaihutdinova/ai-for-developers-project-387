@@ -3,10 +3,7 @@ name: auto-review
 run-name: "#${{ github.event.pull_request.number }} - auto-review"
 
 on:
-  # pull_request_target runs from base branch (trusted), allowing bots/first-timers
-  # to trigger review without manual approval. Safe: only reads base branch files
-  # (REVIEW.md) and comments via API — never executes PR code.
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize]
 
 permissions: {}
