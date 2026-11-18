@@ -1,0 +1,85 @@
+##########################################################################
+#                    Auto-Triage Workflow                                #
+#                                                                        #
+# Automatically triages new issues opened by trusted users.             #
+# Skips issues already labelled by to-tickets (ready-for-agent,         #
+# ready-for-human, wontfix) — they are pre-triaged.                     #
+##########################################################################
+
+name: auto-triage
+
+on:
+  issues:
+    types: [opened]
+
+permissions: {}
+
+concurrency:
+  group: auto-triage-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    # Skip if the issue already has triage labels (pre-created by to-tickets)
+    # or if the author is a bot / not trusted (fork PRs have NONE)
+    if: >-
+      !contains(github.event.issue.labels.*.name, 'ready-for-agent') &&
+      !contains(github.event.issue.labels.*.name, 'ready-for-human') &&
+      !contains(github.event.issue.labels.*.name, 'wontfix') &&
+      github.event.issue.author_association != 'NONE' &&
+      github.event.issue.user.type != 'Bot'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Authenticate gh CLI
+        run: echo "${{ github.token }}" | gh auth login --with-token
+
+      - name: Apply needs-triage label
+        run: gh issue edit ${{ github.event.issue.number }} --add-label "needs-triage"
+
+      - name: Run triage agent
+        uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        with:
+          model: opencode/qwen3.6-plus
+          share: 'true'
+          use-github-token: 'true'
+          prompt: >
+            /triage
+
+            You are running as an auto-triage agent for GitHub Issues.
+
+            Task: Read issue #${{ github.event.issue.number }} and perform triage.
+
+            Rules:
+            1. Read the issue title, body, and labels
+            2. Understand what the user is asking for
+            3. Check the existing codebase (AGENTS.md, docs/agents/, backend/, frontend/) to see what already exists
+            4. Ask clarifying questions if the issue is vague or missing key details
+            5. Suggest next steps: to-spec, to-tickets, or close as wontfix/duplicate
+            6. Apply the appropriate triage label from docs/agents/triage-labels.md:
+               - needs-triage (already applied, keep or remove after analysis)
+               - needs-info — if more details are needed from the reporter
+               - ready-for-agent — if fully specified and ready for implementation
+               - ready-for-human — if needs human work after spec
+               - wontfix — if out of scope or won't do
+            7. Post your analysis as a comment on the issue
+
+            Do NOT create PRs or modify code. Only read, analyze, and comment.
+            The /triage skill is already loaded — use it.
