@@ -77,7 +77,7 @@ jobs:
 
             # Get the last completed run for this PR (excluding current)
             LAST_ID=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_FILE/runs \
-              --jq "[.workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID and .display_title | contains(\"#${TARGET_ID}\"))] | last | .id")
+              --jq "[.workflow_runs[] | select(.conclusion != \"\" and .conclusion != null and .id != $CURRENT_RUN_ID and (.display_title | contains(\"#${TARGET_ID}\")))] | last | .id")
 
             if [ -n "$LAST_ID" ] && [ "$LAST_ID" != "null" ]; then
               CONCLUSION=$(gh api repos/${{ github.repository }}/actions/runs/$LAST_ID --jq '.conclusion')
