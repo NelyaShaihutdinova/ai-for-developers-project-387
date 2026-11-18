@@ -1,0 +1,61 @@
+name: auto-review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: auto-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Только доверенные авторы, только свой репозиторий
+    if: >-
+      github.event.pull_request.author_association != 'NONE' &&
+      github.event.pull_request.base.repo.full_name == github.event.pull_request.head.repo.full_name
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Authenticate gh CLI
+        run: echo "${{ github.token }}" | gh auth login --with-token
+
+      - name: Run review agent
+        uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        with:
+          model: opencode/qwen3.6-plus
+          share: 'true'
+          use-github-token: 'true'
+          prompt: >
+            Ты — агент-ревьюер для Pull Request #${{ github.event.pull_request.number }}.
+
+            Инструкции:
+            1. Прочитай файл REVIEW.md — это чек-лист критериев проверки календаря бронирований
+            2. Проанализируй изменения в PR (diff, затронутые файлы)
+            3. Проверь по каждому разделу REVIEW.md: что выполнено, что упущено
+            4. Оставь развёрнутый комментарий-ревью с результатами:
+               - Какие критерии пройдены
+               - Какие критерии требуют доработки
+               - Найденные проблемы (баги, утечки секретов, отсутствие тестов)
+            5. Если PR не соответствует REVIEW.md, отметь конкретные пункты и предложи исправления
+
+            НЕ модифицируй код. Только анализируй и комментируй.
+            Используй REVIEW.md как основной источник требований.

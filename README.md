@@ -214,8 +214,8 @@ Backend: http://localhost:3000, Frontend: http://localhost:5173.
 
 ### Как работает
 
-1. При создании issue запускается workflow `auto-triage.yml`
-2. Агент `/triage` читает описание, анализирует код и задаёт уточняющие вопросы
+1. При создании issue запускается workflow `auto-triage.yml` (событие `issues:opened`)
+2. Агент получает инструкцию через встроенный prompt: прочитать описание и обсуждение, проанализировать существующий код, задать уточняющие вопросы, предложить следующий шаг (`to-spec`, `to-tickets` или `wontfix`)
 3. Применяет метку триажа из `docs/agents/triage-labels.md`:
 
 | Метка | Значение |
@@ -226,6 +226,13 @@ Backend: http://localhost:3000, Frontend: http://localhost:5173.
 | `ready-for-human` | Требует реализации человеком |
 | `wontfix` | Не будет реализован |
 
+### Фильтры
+
+- **Доверенные авторы**: только `OWNER`, `MEMBER`, `COLLABORATOR`; fork-PR исключены (`author_association != 'NONE'`)
+- **Боты исключены**: `user.type != 'Bot'`
+- **Параллельность**: один запуск на issue (`concurrency` по номеру), `cancel-in-progress: false`
+- **Таймаут**: 10 минут
+
 ### Пропуск готовых тикетов
 
 Issue, созданные через `to-tickets`, уже имеют метку `ready-for-agent` и **не проходят** повторный триаж. Автотриаж срабатывает только на входящие обращения без меток.
@@ -234,3 +241,34 @@ Issue, созданные через `to-tickets`, уже имеют метку 
 
 - **GitHub Actions**: вкладка [Actions → auto-triage](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/auto-triage.yml)
 - **Комментарий в issue**: агент публикует разбор с вопросами и рекомендациями
+
+### Параметры
+
+| Параметр | Значение |
+|---|---|
+| **Событие** | `issues:opened` |
+| **Prompt** | Встроенная инструкция `/triage` — анализ, вопросы, рекомендации |
+| **Таймаут** | 10 минут |
+| **Параллельность** | Один запуск на issue (`cancel-in-progress: false`) |
+| **Фильтр авторов** | `author_association != 'NONE'` (исключает fork) |
+| **Фильтр ботов** | `user.type != 'Bot'` |
+
+## Автопроверка PR (Auto-Review)
+
+При каждом pull_request (opened, synchronize) запускается `auto-review.yml`. Агент читает `REVIEW.md`, проверяет критерии календаря (бронирование, API, контрактная цепочка, фронтенд, БД, безопасность, conventional commits) и оставляет развёрнутый комментарий-ревью.
+
+### Параметры
+
+| Параметр | Значение |
+|---|---|
+| **Событие** | `pull_request` (opened, synchronize) |
+| **Критерии** | `REVIEW.md` — чек-лист календаря бронирований |
+| **Таймаут** | 10 минут |
+| **Параллельность** | Один запуск на PR (`cancel-in-progress: true`) |
+| **Фильтр авторов** | `author_association != 'NONE'` (исключает fork) |
+| **Фильтр веток** | `head.repo.full_name == base.repo.full_name` (только свой репо) |
+| **Права** | `contents: read`, `pull-requests: write` |
+
+### Шаблон PR
+
+`.github/pull_request_template.md` содержит разделы: проверки (команды, ссылки, SHA), оценка риска, способ отката.
