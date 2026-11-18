@@ -37,8 +37,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout repository
@@ -55,3 +55,4 @@ jobs:
           model: opencode/qwen3.6-plus
           mentions: /opencode,/oc
           share: 'true'
+          use-github-token: 'true'
