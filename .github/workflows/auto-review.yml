@@ -23,6 +23,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -43,7 +44,7 @@ jobs:
         with:
           model: opencode/qwen3.6-plus
           share: 'true'
-          use-github-token: 'true'
+          use_github_token: 'true'
           prompt: >
             Ты — агент-ревьюер для Pull Request #${{ github.event.pull_request.number }}.
 
