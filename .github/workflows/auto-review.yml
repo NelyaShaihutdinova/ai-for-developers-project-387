@@ -152,13 +152,12 @@ jobs:
             В конце добавь ссылку: [github run](/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
           " > /tmp/opencode-stdout.jsonl 2>/tmp/opencode-stderr.log
 
-          # Extract the final text message from JSONL output
-          REVIEW_TEXT=$(cat /tmp/opencode-stdout.jsonl | jq -r 'select(.type == "text") | .part.text' 2>/dev/null | tail -1)
+          # Extract all text messages and write to file
+          jq -r 'select(.type == "text") | .part.text' /tmp/opencode-stdout.jsonl > /tmp/review-body.md 2>/dev/null
 
-          if [ -z "$REVIEW_TEXT" ]; then
+          if [ ! -s /tmp/review-body.md ]; then
             echo "ERROR: Could not extract review text"
             exit 1
           fi
 
-          printf '%s' "$REVIEW_TEXT" > /tmp/review-body.md
           gh pr comment "$PR_NUMBER" --body-file /tmp/review-body.md
