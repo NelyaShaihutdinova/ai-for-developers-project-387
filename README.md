@@ -295,3 +295,75 @@ Issue, созданные через `to-tickets`, уже имеют метку 
 
 - Комментарий в PR/issue: `⛔ Agent run limit exhausted (N/3)` с reason, SHA и ссылкой на логи
 - GitHub Actions: вкладка [Actions](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions) — история запусков
+
+## Аудит
+
+Ежедневный аудит репозитория через OpenCode-агента.
+
+### Как работает
+
+1. Воркфлоу `audit.yml` запускается по cron или вручную
+2. Агент проверяет: безопасность, stale branches, CI failures, stale issues/PRs, Conventional Commits, зависимости, актуальность инструкций
+3. Для каждой проблемы создаётся issue с лейблом `audit`
+4. Дубликаты пропускаются
+
+### Где смотреть
+
+- **GitHub Actions**: [Actions → audit](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/audit.yml)
+- **Результаты**: [Issues с лейблом `audit`](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/issues?q=label%3Aaudit)
+
+## Lighthouse-аудит
+
+Еженедельная проверка производительности приложения через Lighthouse.
+
+### Как работает
+
+1. Воркфлоу `lighthouse-audit.yml` запускается по понедельникам в 06:30 MSK или вручную
+2. Разбудит Render-приложение (до 10 попыток с интервалом 15с)
+3. Запускает Lighthouse CI (3 прохода) по `APP_URL`
+4. Сохраняет отчёт как артефакт (30 дней)
+5. Агент анализирует отчёт и создаёт issues с лейблом `lighthouse` **только для новых проблем**
+
+### Настройки
+
+- `APP_URL` — Repository Variable (Settings → Actions → Variables)
+- `lh-budget.json` — бюджет: total < 500KB, FCP < 3s, TTI < 10s
+
+### Где смотреть
+
+- **GitHub Actions**: [Actions → lighthouse-audit](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/actions/workflows/lighthouse-audit.yml)
+- **Артефакты**: вкладка Artifacts каждого запуска (`.lighthouseci/`, 30 дней)
+- **Публичные отчёты**: ссылки в summary (temporaryPublicStorage)
+- **Результаты**: [Issues с лейблом `lighthouse`](https://github.com/NelyaShaihutdinova/ai-for-developers-project-387/issues?q=label%3Alighthouse)
+
+## Выводы о работе GitHub-агента
+
+### Что потребовало уточнений
+
+1. **`persist-credentials: false` блокировало `git push`** — агент делал коммиты, но не мог запушить ветку. Исправлено на `true` для workflow `opencode.yml`.
+2. **`contents: read` не давало создавать PR** — `gh pr create` требует `contents: write` и `pull-requests: write`.
+3. **Агент не прогоняет Prettier** — после реализации файлы были не отформатированы. CI падал на `format:check`.
+4. **Агент добавляет unused imports** — `within` из `@testing-library/react` попал в тест без использования. ESLint ловил это на CI.
+5. **Debug-строки в логах** — `echo "KEY_LENGTH=..."` попало в финальный коммит.
+6. **Счётчик лимитов считал предыдущие тестовые запуски** — issue #10 исчерпал лимит (3) ещё до implement-spec. Лимит работает корректно, но нужно создавать свежий issue для новых задач.
+
+### Что изменила в настройках
+
+| Настройка | Было | Стало | Причина |
+|---|---|---|---|
+| `persist-credentials` | `false` | `true` (opencode.yml) | Агент не мог `git push` |
+| `permissions: contents` | `read` | `write` (opencode.yml) | Агент не мог `gh pr create` |
+| `permissions: pull-requests` | — | `write` (opencode.yml) | Создание PR |
+| `opencode.jsonc` | — | `external_directory: "*-wt-*": "allow"` | implement-spec создаёт worktree |
+| Авторевью: событие | `anomalyco/opencode/github` action | `opencode run --format json` (CLI) | Action проверяет права отправителя → `permission: none` для ботов |
+| Авторевью: `author_association` | `!= 'NONE'` | Убран (auto-review.yml) | Боты имеют `NONE`, но из своего репо — должны получать ревью |
+| GitHub Actions: approval | `Require approval for first-time contributors` | `Require approval for first-time contributors who are new to GitHub` | release-please и opencode-agent не должны ждать аппрува |
+| Лимит запусков | — | 3 на PR/issue | Защита от бесконечных вызовов |
+
+### Что работает без вмешательства
+
+- Триаж новых issue (`auto-triage.yml`) — задаёт вопросы, применяет метки
+- Реализация по спецификации (`implement-spec`) — создаёт ветку, коммиты, PR
+- Лимит запусков — после 3 вызовов `/oc` завершается без модели
+- Авто-ревью на каждый PR — читает REVIEW.md, комментирует diff
+- Аудит репозитория — проверяет CI, stale issues, формат коммитов
