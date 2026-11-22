@@ -32,6 +32,9 @@ export const BookingSchema = {
         guestEmail: {
             type: 'string'
         },
+        topic: {
+            type: 'string'
+        },
         createdAt: {
             type: 'string'
         }
@@ -58,6 +61,9 @@ export const BookingCreateSchema = {
             type: 'string'
         },
         guestEmail: {
+            type: 'string'
+        },
+        topic: {
             type: 'string'
         }
     }
@@ -97,6 +103,9 @@ export const BookingWithTypeNameSchema = {
             type: 'string'
         },
         guestEmail: {
+            type: 'string'
+        },
+        topic: {
             type: 'string'
         },
         createdAt: {

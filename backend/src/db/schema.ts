@@ -20,6 +20,7 @@ export const bookings = sqliteTable(
     endAt: text('end_at').notNull(),
     guestName: text('guest_name').notNull(),
     guestEmail: text('guest_email').notNull(),
+    topic: text('topic'),
     createdAt: text('created_at').notNull().default("(datetime('now'))"),
   },
   (table) => ({
