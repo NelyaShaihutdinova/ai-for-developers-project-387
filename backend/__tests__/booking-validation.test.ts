@@ -258,13 +258,15 @@ describe('Booking validation rules', () => {
     it('returns 400 when topic exceeds 200 characters', async () => {
       const longTopic = 'a'.repeat(201)
 
-      const res = await request('http://localhost:3093').post('/api/bookings').send({
-        meetingTypeId: meetingTypeId30,
-        startAt: makeStartAt(day1, 8, 0),
-        guestName: 'Test',
-        guestEmail: 'test@example.com',
-        topic: longTopic,
-      })
+      const res = await request('http://localhost:3093')
+        .post('/api/bookings')
+        .send({
+          meetingTypeId: meetingTypeId30,
+          startAt: makeStartAt(day1, 8, 0),
+          guestName: 'Test',
+          guestEmail: 'test@example.com',
+          topic: longTopic,
+        })
       expect(res.status).toBe(400)
       expect(res.body.error.code).toBe('VALIDATION_ERROR')
     })
@@ -272,13 +274,15 @@ describe('Booking validation rules', () => {
     it('allows booking with topic of exactly 200 characters', async () => {
       const maxTopic = 'a'.repeat(200)
 
-      const res = await request('http://localhost:3093').post('/api/bookings').send({
-        meetingTypeId: meetingTypeId30,
-        startAt: makeStartAt(day1, 9, 0),
-        guestName: 'Test',
-        guestEmail: 'test@example.com',
-        topic: maxTopic,
-      })
+      const res = await request('http://localhost:3093')
+        .post('/api/bookings')
+        .send({
+          meetingTypeId: meetingTypeId30,
+          startAt: makeStartAt(day1, 9, 0),
+          guestName: 'Test',
+          guestEmail: 'test@example.com',
+          topic: maxTopic,
+        })
       expect(res.status).toBe(201)
       expect(res.body.topic).toBe(maxTopic)
     })
