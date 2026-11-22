@@ -24,7 +24,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      id-token: write
 
     env:
       MAX_RUNS: 3
@@ -114,19 +113,26 @@ jobs:
 
           gh pr comment $PR_NUMBER --body "$MSG"
 
+      - name: Install opencode CLI
+        if: steps.limit.outputs.limit_exceeded != 'true'
+        run: curl -fsSL https://opencode.ai/install | bash
+
       - name: Run review agent
         if: steps.limit.outputs.limit_exceeded != 'true'
-        uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
-        with:
-          model: opencode/qwen3.6-plus
-          share: 'true'
-          use_github_token: 'true'
-          prompt: >
-            Ты — агент-ревьюер для Pull Request #${{ github.event.pull_request.number }}.
+          MODEL: opencode/qwen3.6-plus
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          GITHUB_REPOSITORY="${{ github.repository }}"
+          GITHUB_RUN_ID="${{ github.run_id }}"
+
+          REVIEW_TEXT=$(opencode run --format json --auto -p "
+            Ты — агент-ревьюер для Pull Request #$PR_NUMBER: «$PR_TITLE».
 
             Инструкции:
             1. Прочитай файл REVIEW.md — это чек-лист критериев проверки календаря бронирований
@@ -140,3 +146,7 @@ jobs:
 
             НЕ модифицируй код. Только анализируй и комментируй.
             Используй REVIEW.md как основной источник требований.
+            В конце добавь ссылку: [github run](/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
+          " 2>/dev/null | jq -r 'select(.type == "message" and .message.role == "assistant") | .message.content[] | select(.type == "text") | .text' | tail -1)
+
+          echo "$REVIEW_TEXT" | gh pr comment "$PR_NUMBER" --body-file -
