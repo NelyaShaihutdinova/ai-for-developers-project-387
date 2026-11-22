@@ -83,7 +83,7 @@ model Booking {
   endAt: string;
   guestName: string;
   guestEmail: string;
-  topic?: string;
+  topic?: string | null;
   createdAt: string;
 }
 
@@ -129,6 +129,6 @@ model BookingWithTypeName {
   endAt: string;
   guestName: string;
   guestEmail: string;
-  topic?: string;
+  topic?: string | null;
   createdAt: string;
 }

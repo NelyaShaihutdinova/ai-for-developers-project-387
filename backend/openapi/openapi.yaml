@@ -192,6 +192,7 @@ components:
           type: string
         topic:
           type: string
+          nullable: true
         createdAt:
           type: string
     BookingCreate:
@@ -243,6 +244,7 @@ components:
           type: string
         topic:
           type: string
+          nullable: true
         createdAt:
           type: string
     ConflictError:

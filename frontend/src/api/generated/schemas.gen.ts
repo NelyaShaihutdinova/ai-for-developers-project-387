@@ -33,7 +33,8 @@ export const BookingSchema = {
             type: 'string'
         },
         topic: {
-            type: 'string'
+            type: 'string',
+            nullable: true
         },
         createdAt: {
             type: 'string'
@@ -106,7 +107,8 @@ export const BookingWithTypeNameSchema = {
             type: 'string'
         },
         topic: {
-            type: 'string'
+            type: 'string',
+            nullable: true
         },
         createdAt: {
             type: 'string'

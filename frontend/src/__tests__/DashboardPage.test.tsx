@@ -138,3 +138,51 @@ test('sends durationMinutes as a number for 15-minute and 60-minute values', asy
     expect(typeof body.durationMinutes).toBe('number')
   })
 })
+
+test('renders "Тема" column header in bookings table', async () => {
+  const { default: DashboardPage } = await import('../pages/DashboardPage')
+
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <MantineProvider>
+        <DashboardPage />
+      </MantineProvider>
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('Тема')).toBeInTheDocument()
+  })
+})
+
+test('renders "—" when booking topic is empty', async () => {
+  const { default: DashboardPage } = await import('../pages/DashboardPage')
+
+  mocks.bookingsList.mockResolvedValue({
+    data: [
+      {
+        id: 1,
+        meetingTypeId: 1,
+        meetingTypeName: 'Тест',
+        startAt: '2026-12-01T06:00:00Z',
+        endAt: '2026-12-01T06:30:00Z',
+        guestName: 'Иван',
+        guestEmail: 'ivan@example.com',
+        topic: null,
+        createdAt: '2026-11-01T00:00:00Z',
+      },
+    ],
+  })
+
+  render(
+    <MemoryRouter initialEntries={['/dashboard']}>
+      <MantineProvider>
+        <DashboardPage />
+      </MantineProvider>
+    </MemoryRouter>,
+  )
+
+  await waitFor(() => {
+    expect(screen.getByText('—')).toBeInTheDocument()
+  })
+})

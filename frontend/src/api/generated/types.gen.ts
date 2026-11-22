@@ -11,7 +11,7 @@ export type Booking = {
     endAt: string;
     guestName: string;
     guestEmail: string;
-    topic?: string;
+    topic?: string | null;
     createdAt: string;
 };
 
@@ -31,7 +31,7 @@ export type BookingWithTypeName = {
     endAt: string;
     guestName: string;
     guestEmail: string;
-    topic?: string;
+    topic?: string | null;
     createdAt: string;
 };
 
