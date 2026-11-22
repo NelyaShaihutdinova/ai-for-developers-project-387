@@ -28,7 +28,16 @@ async function navigateToBookingForm() {
   const { default: MeetingsPage } = await import('../pages/MeetingsPage')
 
   mocks.meetingTypesList.mockResolvedValue({
-    data: [{ id: 1, name: 'Тест', description: '', durationMinutes: 30, isActive: true, createdAt: 'now' }],
+    data: [
+      {
+        id: 1,
+        name: 'Тест',
+        description: '',
+        durationMinutes: 30,
+        isActive: true,
+        createdAt: 'now',
+      },
+    ],
   })
   mocks.slotsList.mockResolvedValue({
     data: [
@@ -55,21 +64,19 @@ async function navigateToBookingForm() {
   await waitFor(() => {
     expect(screen.getByText(/Выберите дату/i)).toBeInTheDocument()
   })
-  const dateButton = screen.getAllByRole('button').find(btn =>
-    btn.textContent?.match(/пн|вт|ср|чт|пт/)
-  )
+  const dateButton = screen
+    .getAllByRole('button')
+    .find((btn) => btn.textContent?.match(/пн|вт|ср|чт|пт/))
   if (dateButton) fireEvent.click(dateButton)
 
   // Select first time slot
   await waitFor(() => {
-    const slotButton = screen.getAllByRole('button').find(btn =>
-      btn.textContent?.includes('09:00')
-    )
+    const slotButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent?.includes('09:00'))
     expect(slotButton).toBeInTheDocument()
   })
-  const slotButton = screen.getAllByRole('button').find(btn =>
-    btn.textContent?.includes('09:00')
-  )
+  const slotButton = screen.getAllByRole('button').find((btn) => btn.textContent?.includes('09:00'))
   if (slotButton) fireEvent.click(slotButton)
 
   // Wait for form to appear
@@ -102,8 +109,12 @@ test('form submission includes topic value when provided', async () => {
   })
 
   fireEvent.change(screen.getByRole('textbox', { name: /имя/i }), { target: { value: 'Иван' } })
-  fireEvent.change(screen.getByRole('textbox', { name: /email/i }), { target: { value: 'ivan@example.com' } })
-  fireEvent.change(screen.getByRole('textbox', { name: /тема/i }), { target: { value: 'Важный вопрос' } })
+  fireEvent.change(screen.getByRole('textbox', { name: /email/i }), {
+    target: { value: 'ivan@example.com' },
+  })
+  fireEvent.change(screen.getByRole('textbox', { name: /тема/i }), {
+    target: { value: 'Важный вопрос' },
+  })
 
   fireEvent.click(screen.getByRole('button', { name: /записаться/i }))
 

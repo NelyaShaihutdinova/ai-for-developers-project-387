@@ -202,9 +202,7 @@ function MeetingsPage() {
             <Text size="sm" mb="xs">
               Email: {confirmedBooking.guestEmail}
             </Text>
-            {confirmedBooking.topic && (
-              <Text size="sm">Тема: {confirmedBooking.topic}</Text>
-            )}
+            {confirmedBooking.topic && <Text size="sm">Тема: {confirmedBooking.topic}</Text>}
           </Card>
           <Button onClick={resetToStart} size="lg" mt="md">
             Записаться ещё
