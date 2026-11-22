@@ -207,6 +207,45 @@ describe('Bookings', () => {
       expect(res.status).toBe(400)
       expect(res.body.error.code).toBe('VALIDATION_ERROR')
     })
+
+    it('creates a booking with topic and returns 201 with topic in response', async () => {
+      const mtRes = await request('http://localhost:3096').post('/api/meeting-types').send({
+        name: 'Topic Test Type',
+        description: 'For topic test',
+        durationMinutes: 30,
+      })
+      const localMtId = mtRes.body.id
+      const startAt = `${testDate}T10:00:00Z`
+      const res = await request('http://localhost:3096').post('/api/bookings').send({
+        meetingTypeId: localMtId,
+        startAt,
+        guestName: 'Ольга',
+        guestEmail: 'olga@example.com',
+        topic: 'Обсуждение нового проекта',
+      })
+      expect(res.status).toBe(201)
+      expect(res.body).toHaveProperty('id')
+      expect(res.body.topic).toBe('Обсуждение нового проекта')
+    })
+
+    it('creates a booking without topic and returns 201 with null topic', async () => {
+      const mtRes = await request('http://localhost:3096').post('/api/meeting-types').send({
+        name: 'No Topic Test Type',
+        description: 'For no topic test',
+        durationMinutes: 30,
+      })
+      const localMtId = mtRes.body.id
+      const startAt = `${testDate}T11:00:00Z`
+      const res = await request('http://localhost:3096').post('/api/bookings').send({
+        meetingTypeId: localMtId,
+        startAt,
+        guestName: 'Дмитрий',
+        guestEmail: 'dmitry@example.com',
+      })
+      expect(res.status).toBe(201)
+      expect(res.body).toHaveProperty('id')
+      expect(res.body.topic).toBeNull()
+    })
   })
 
   describe('GET /api/bookings', () => {

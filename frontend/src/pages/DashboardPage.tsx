@@ -137,6 +137,7 @@ function DashboardPage() {
       <Table.Td>{b.meetingTypeName}</Table.Td>
       <Table.Td>{b.guestName}</Table.Td>
       <Table.Td>{b.guestEmail}</Table.Td>
+      <Table.Td>{b.topic || '—'}</Table.Td>
       <Table.Td>
         {b.endAt
           ? Math.round((new Date(b.endAt).getTime() - new Date(b.startAt).getTime()) / 60000)
@@ -234,6 +235,7 @@ function DashboardPage() {
             <Table.Th>Тип</Table.Th>
             <Table.Th>Имя гостя</Table.Th>
             <Table.Th>Email</Table.Th>
+            <Table.Th>Тема</Table.Th>
             <Table.Th>Длительность</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -242,7 +244,7 @@ function DashboardPage() {
             bookingRows
           ) : (
             <Table.Tr>
-              <Table.Td colSpan={6}>
+              <Table.Td colSpan={7}>
                 <Text ta="center" c="dimmed">
                   Пока нет записей
                 </Text>

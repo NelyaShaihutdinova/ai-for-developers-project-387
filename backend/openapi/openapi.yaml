@@ -190,6 +190,9 @@ components:
           type: string
         guestEmail:
           type: string
+        topic:
+          type: string
+          nullable: true
         createdAt:
           type: string
     BookingCreate:
@@ -208,6 +211,8 @@ components:
         guestName:
           type: string
         guestEmail:
+          type: string
+        topic:
           type: string
     BookingWithTypeName:
       type: object
@@ -237,6 +242,9 @@ components:
           type: string
         guestEmail:
           type: string
+        topic:
+          type: string
+          nullable: true
         createdAt:
           type: string
     ConflictError:
