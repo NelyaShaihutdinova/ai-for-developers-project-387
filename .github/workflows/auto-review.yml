@@ -133,7 +133,8 @@ jobs:
           # Verify secret reaches the runner (masked, just length)
           echo "KEY_LENGTH=${#OPENCODE_API_KEY}"
 
-          opencode run --format json --auto --model opencode/qwen3.6-plus "
+          # Run review agent (no --auto: reviewer should only read, not execute code)
+          opencode run --format json --model opencode/qwen3.6-plus "
             Ты — агент-ревьюер для Pull Request #$PR_NUMBER: «$PR_TITLE».
 
             Инструкции:
@@ -149,12 +150,7 @@ jobs:
             НЕ модифицируй код. Только анализируй и комментируй.
             Используй REVIEW.md как основной источник требований.
             В конце добавь ссылку: [github run](/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
-          " > /tmp/opencode-stdout.jsonl 2>/tmp/opencode-stderr.log || true
-
-          echo "=== STDERR ==="
-          cat /tmp/opencode-stderr.log
-          echo "=== STDOUT (last 5 lines) ==="
-          cat /tmp/opencode-stdout.jsonl | tail -5
+          " > /tmp/opencode-stdout.jsonl 2>/tmp/opencode-stderr.log
 
           # Extract the final text message from JSONL output
           REVIEW_TEXT=$(cat /tmp/opencode-stdout.jsonl | jq -r 'select(.type == "text") | .part.text' 2>/dev/null | tail -1)
@@ -164,4 +160,5 @@ jobs:
             exit 1
           fi
 
-          echo "$REVIEW_TEXT" | gh pr comment "$PR_NUMBER" --body-file -
+          printf '%s' "$REVIEW_TEXT" > /tmp/review-body.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/review-body.md
