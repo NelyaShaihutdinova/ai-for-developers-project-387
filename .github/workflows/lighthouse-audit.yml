@@ -22,7 +22,7 @@ concurrency:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     permissions:
       contents: read
@@ -47,7 +47,27 @@ jobs:
           fi
           echo "Target URL: ${{ vars.APP_URL }}"
 
+      - name: Wake up Render app
+        run: |
+          echo "Waking up app at ${{ vars.APP_URL }}..."
+          RESPONDED=false
+          for i in $(seq 1 10); do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ vars.APP_URL }}" || echo "000")
+            echo "  Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+              echo "App is responding!"
+              RESPONDED=true
+              break
+            fi
+            sleep 15
+          done
+          if [ "$RESPONDED" = false ]; then
+            echo "::warning::App did not respond after 10 attempts. Lighthouse may fail."
+          fi
+
       - name: Run Lighthouse CI
+        id: lh
+        continue-on-error: true
         uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
@@ -66,32 +86,39 @@ jobs:
 
       - name: Prepare audit context
         run: |
-          LHR_FILE=$(find .lighthouseci -name "*.lhr.json" -type f | sort | tail -1)
+          LHR_FILE=$(find .lighthouseci -name "*.lhr.json" -type f 2>/dev/null | sort | tail -1)
           if [ -z "$LHR_FILE" ]; then
-            echo "ERROR: No Lighthouse report found"
-            exit 1
+            echo "::warning::No Lighthouse report found. Creating fallback summary."
+            {
+              echo "## Lighthouse Audit Report"
+              echo ""
+              echo "**URL:** ${{ vars.APP_URL }}"
+              echo "**Status:** FAILED — app did not respond"
+              echo ""
+              echo "No report could be generated."
+            } > /tmp/lh-summary.md
+          else
+            # Build a human-readable summary
+            {
+              echo "## Lighthouse Audit Report"
+              echo ""
+              echo "**URL:** $(jq -r '.finalUrl' "$LHR_FILE")"
+              echo "**Time:** $(jq -r '.fetchTime' "$LHR_FILE")"
+              echo ""
+              echo "### Scores"
+              echo "| Category | Score |"
+              echo "|---|---|"
+              jq -r '.categories | to_entries[] | "| \(.key) | \(.value.score) |"' "$LHR_FILE"
+              echo ""
+              echo "### Failing Audits (score < 1)"
+              jq -r '.audits | to_entries[] | select(.value.score != null and .value.score < 1) | "- **\(.value.title)** (score: \(.value.score))"' "$LHR_FILE"
+              echo ""
+              echo "### Public Report Links"
+              for f in $(find .lighthouseci -name "*.report.url" -type f); do
+                echo "- $(cat "$f")"
+              done
+            } > /tmp/lh-summary.md
           fi
-
-          # Build a human-readable summary
-          {
-            echo "## Lighthouse Audit Report"
-            echo ""
-            echo "**URL:** $(jq -r '.finalUrl' "$LHR_FILE")"
-            echo "**Time:** $(jq -r '.fetchTime' "$LHR_FILE")"
-            echo ""
-            echo "### Scores"
-            echo "| Category | Score |"
-            echo "|---|---|"
-            jq -r '.categories | to_entries[] | "| \(.key) | \(.value.score) |"' "$LHR_FILE"
-            echo ""
-            echo "### Failing Audits (score < 1)"
-            jq -r '.audits | to_entries[] | select(.value.score != null and .value.score < 1) | "- **\(.value.title)** (score: \(.value.score))"' "$LHR_FILE"
-            echo ""
-            echo "### Public Report Links"
-            for f in $(find .lighthouseci -name "*.report.url" -type f); do
-              echo "- $(cat "$f")"
-            done
-          } > /tmp/lh-summary.md
 
           cat /tmp/lh-summary.md
 
