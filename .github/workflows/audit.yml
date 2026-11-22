@@ -1,0 +1,78 @@
+##########################################################################
+#                    Scheduled Audit Workflow                            #
+#                                                                        #
+# Runs daily audit of the repository via OpenCode agent.                #
+# Creates issues for findings (security, stale branches, CI failures).  #
+# Triggered by schedule (daily at 03:17 UTC = 06:17 MSK) or manually.   #
+##########################################################################
+
+name: audit
+
+on:
+  schedule:
+    - cron: '17 3 * * *'  # 06:17 MSK (Europe/Moscow)
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Authenticate gh CLI
+        run: echo "${{ github.token }}" | gh auth login --with-token
+
+      - name: Run audit agent
+        uses: anomalyco/opencode/github@2410593023d2c61f05123c9b0faf189a28dfbeee # v2.0
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        with:
+          model: opencode/qwen3.6-plus
+          share: 'true'
+          use_github_token: 'true'
+          prompt: >
+            Ты — агент-аудитор для репозитория NelyaShaihutdinova/ai-for-developers-project-387.
+
+            Проведи ежедневный аудит и создай issues для найденных проблем.
+
+            **Что проверять:**
+
+            1. **Безопасность:** секретов в коде, хардкод-ключи, API-токены в логах
+            2. **Stale branches:** ветки старше 14 дней без активности
+            3. **CI failures:** последние 7 дней — какие check/run падали и почему
+            4. **Stale issues/PRs:** открытые более 7 дней без комментариев
+            5. **Conventional Commits:** последние коммиты нарушают формат (нет #NN)
+            6. **Dependencies:** устаревшие или уязвимые пакеты (npm audit)
+            7. **AGENTS.md/REVIEW.md:** актуальны ли инструкции, нет ли drift
+
+            **Действия:**
+
+            Для каждой проблемы создай issue с лейблом `audit`.
+            В issue укажи: что найдено, где (файл/строка/commit sha), severity (high/medium/low), рекомендуемые действия.
+
+            НЕ создавай дубликаты — проверь существующие issues с лейблом `audit` перед созданием новых.
+            НЕ закрывай и не меняй чужие issues.
+
+            Если проблем не найдено — создай issue с заголовком "Audit OK [YYYY-MM-DD]"
+            и пометь как closed, чтобы был отчёт о том, что проверка прошла.
+
+            В конце опубликуй краткое резюме: сколько issues создано, что обнаружено.
