@@ -1,0 +1,139 @@
+##########################################################################
+#                    Lighthouse Audit Workflow                           #
+#                                                                        #
+# Runs Lighthouse performance audit against APP_URL.                    #
+# Saves report as artifact, passes results to OpenCode agent.           #
+# Agent creates issues ONLY for new findings.                           #
+##########################################################################
+
+name: lighthouse-audit
+
+on:
+  schedule:
+    - cron: '30 3 * * 1'  # 06:30 MSK, every Monday
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: lighthouse-audit
+  cancel-in-progress: false
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Authenticate gh CLI
+        run: echo "${{ github.token }}" | gh auth login --with-token
+
+      - name: Check APP_URL is set
+        run: |
+          if [ -z "${{ vars.APP_URL }}" ]; then
+            echo "::error::APP_URL repository variable is not set. Set it at Settings → Actions → Variables."
+            exit 1
+          fi
+          echo "Target URL: ${{ vars.APP_URL }}"
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            ${{ vars.APP_URL }}
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3
+          budgetPath: ./lh-budget.json
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 30
+
+      - name: Prepare audit context
+        run: |
+          LHR_FILE=$(find .lighthouseci -name "*.lhr.json" -type f | sort | tail -1)
+          if [ -z "$LHR_FILE" ]; then
+            echo "ERROR: No Lighthouse report found"
+            exit 1
+          fi
+
+          # Build a human-readable summary
+          {
+            echo "## Lighthouse Audit Report"
+            echo ""
+            echo "**URL:** $(jq -r '.finalUrl' "$LHR_FILE")"
+            echo "**Time:** $(jq -r '.fetchTime' "$LHR_FILE")"
+            echo ""
+            echo "### Scores"
+            echo "| Category | Score |"
+            echo "|---|---|"
+            jq -r '.categories | to_entries[] | "| \(.key) | \(.value.score) |"' "$LHR_FILE"
+            echo ""
+            echo "### Failing Audits (score < 1)"
+            jq -r '.audits | to_entries[] | select(.value.score != null and .value.score < 1) | "- **\(.value.title)** (score: \(.value.score))"' "$LHR_FILE"
+            echo ""
+            echo "### Public Report Links"
+            for f in $(find .lighthouseci -name "*.report.url" -type f); do
+              echo "- $(cat "$f")"
+            done
+          } > /tmp/lh-summary.md
+
+          cat /tmp/lh-summary.md
+
+      - name: Run audit agent
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          MODEL: opencode/qwen3.6-plus
+        run: |
+          export PATH="$HOME/.opencode/bin:$PATH"
+
+          # Download opencode CLI if not present
+          if ! command -v opencode &>/dev/null; then
+            curl -fsSL https://opencode.ai/install | bash
+            export PATH="$HOME/.opencode/bin:$PATH"
+          fi
+
+          SUMMARY=$(cat /tmp/lh-summary.md)
+          REPO="${{ github.repository }}"
+          GITHUB_RUN_ID="${{ github.run_id }}"
+
+          opencode run --format json --auto --model opencode/qwen3.6-plus "
+            Ты — агент-аудитор по результатам Lighthouse отчёта.
+
+            $SUMMARY
+
+            **Инструкция:**
+
+            1. Проверь существующие issues с лейблом 'lighthouse' — не создавай дубликаты
+            2. Для каждой НОВОЙ проблемы создай issue с лейблом 'lighthouse':
+               - Заголовок: 'Lighthouse: [название проблемы]'
+               - Тело: описание проблемы, предлагаемое действие, ссылка на этот запуск: https://github.com/$REPO/actions/runs/$GITHUB_RUN_ID
+               - Label: 'lighthouse'
+            3. НЕ создавай issue для проблем, которые уже есть
+            4. Если все проблемы уже покрыты issues — не создавай ничего
+
+            В конце опубликуй резюме: сколько новых issues создано, сколько уже существуют.
+          " > /tmp/opencode-stdout.jsonl 2>/tmp/opencode-stderr.log || true
+
+          # Extract and post agent summary
+          AGENT_SUMMARY=$(jq -r 'select(.type == "text") | .part.text' /tmp/opencode-stdout.jsonl 2>/dev/null | tail -1)
+          if [ -n "$AGENT_SUMMARY" ]; then
+            echo "$AGENT_SUMMARY"
+          fi

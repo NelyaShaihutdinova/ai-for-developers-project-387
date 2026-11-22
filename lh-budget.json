@@ -1,0 +1,19 @@
+{
+  "resourceSummary": [
+    {
+      "resourceType": "total",
+      "budget": 500,
+      "overBudgetOperations": "warn"
+    }
+  ],
+  "timings": [
+    {
+      "metric": "interactive",
+      "budget": 10000
+    },
+    {
+      "metric": "first-contentful-paint",
+      "budget": 3000
+    }
+  ]
+}
