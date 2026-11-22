@@ -123,7 +123,6 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
-          MODEL: opencode/qwen3.6-plus
         run: |
           export PATH="$HOME/.opencode/bin:$PATH"
           PR_NUMBER="${{ github.event.pull_request.number }}"
@@ -131,7 +130,10 @@ jobs:
           GITHUB_REPOSITORY="${{ github.repository }}"
           GITHUB_RUN_ID="${{ github.run_id }}"
 
-          opencode run --format json --auto "
+          # Verify secret reaches the runner (masked, just length)
+          echo "KEY_LENGTH=${#OPENCODE_API_KEY}"
+
+          opencode run --format json --auto --model opencode/qwen3.6-plus "
             Ты — агент-ревьюер для Pull Request #$PR_NUMBER: «$PR_TITLE».
 
             Инструкции:
