@@ -131,7 +131,7 @@ jobs:
           GITHUB_REPOSITORY="${{ github.repository }}"
           GITHUB_RUN_ID="${{ github.run_id }}"
 
-          REVIEW_TEXT=$(opencode run --format json --auto -p "
+          opencode run --format json --auto "
             Ты — агент-ревьюер для Pull Request #$PR_NUMBER: «$PR_TITLE».
 
             Инструкции:
@@ -147,6 +147,19 @@ jobs:
             НЕ модифицируй код. Только анализируй и комментируй.
             Используй REVIEW.md как основной источник требований.
             В конце добавь ссылку: [github run](/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
-          " 2>/dev/null | jq -r 'select(.type == "message" and .message.role == "assistant") | .message.content[] | select(.type == "text") | .text' | tail -1)
+          " > /tmp/opencode-stdout.jsonl 2>/tmp/opencode-stderr.log || true
+
+          echo "=== STDERR ==="
+          cat /tmp/opencode-stderr.log
+          echo "=== STDOUT (last 5 lines) ==="
+          cat /tmp/opencode-stdout.jsonl | tail -5
+
+          # Extract the final assistant message text from JSONL output
+          REVIEW_TEXT=$(cat /tmp/opencode-stdout.jsonl | jq -r 'select(.type == "message" and .message.role == "assistant") | .message.content[] | select(.type == "text") | .text' 2>/dev/null | tail -1)
+
+          if [ -z "$REVIEW_TEXT" ]; then
+            echo "ERROR: Could not extract review text"
+            exit 1
+          fi
 
           echo "$REVIEW_TEXT" | gh pr comment "$PR_NUMBER" --body-file -
